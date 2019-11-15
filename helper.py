@@ -6,6 +6,10 @@ def imread(path):
     return cv2.imread(path)
 
 
+def imwrite(image, path):
+    cv2.imwrite(path, image)
+
+
 def imrescale(image, scale):
     w, h = image.shape[:2]
     return cv2.resize(image, (int(w * scale), int(h * scale)))
@@ -15,13 +19,19 @@ def imresize(image, size):
     return cv2.resize(image, size)
 
 
+def normalize(image):
+    return (np.array(image, dtype=np.float32) / 255.0 - 0.5) * 2.0
+
+
+def denormalize(image):
+    return np.array((image / 2.0 + 0.5) * 255.0, dtype=np.uint8)
+
+
 def create_reals_pyramid(real, stop_scale, scale_factor):
     reals = []
-    for i in range(stop_scale):
+    for i in range(stop_scale + 1):
         scale = scale_factor ** (stop_scale - i)
         scaled_image = imrescale(real, scale)
         transposed_image = np.transpose(scaled_image, [2, 0, 1])
-        normalized_image = np.array(transposed_image, dtype=np.float32) / 255.0
-        normalized_image = (normalized_image - 0.5) * 2.0
-        reals.append(np.expand_dims(normalized_image, axis=0))
+        reals.append(np.expand_dims(normalize(transposed_image), axis=0))
     return reals
