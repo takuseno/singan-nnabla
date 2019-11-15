@@ -11,6 +11,7 @@ from helper import imread, imwrite, imresize, imrescale, create_reals_pyramid
 from helper import normalize, denormalize
 from nnabla.monitor import Monitor, MonitorSeries, MonitorImage
 from nnabla.ext_utils import get_extension_context
+from nnabla.utils.learning_rate_scheduler import StepScheduler
 
 
 def _pad(x, kernel, num_layer):
@@ -169,10 +170,14 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
     with nn.parameter_scope(g_scope):
         g_params = nn.get_parameters()
 
-    # create solvers
-    d_solver = S.Adam(args.d_lr)
+    # create solvers for discriminator
+    d_lr_scheduler = StepScheduler(args.d_lr, args.gamma, [args.lr_milestone])
+    d_solver = S.Adam(args.d_lr, beta1=args.beta1, beta2=0.999)
     d_solver.set_parameters(d_params)
-    g_solver = S.Adam(args.g_lr)
+
+    # create solvers for generator
+    g_lr_scheduler = StepScheduler(args.g_lr, args.gamma, [args.lr_milestone])
+    g_solver = S.Adam(args.g_lr, beta1=args.beta1, beta2=0.999)
     g_solver.set_parameters(g_params)
 
     # training loop
@@ -224,6 +229,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
 
             d_solver.zero_grad()
             d_error.backward(clear_buffer=True)
+            lr = d_lr_scheduler.get_learning_rate(epoch * args.d_steps + d_step)
+            d_solver.set_learning_rate(lr)
             d_solver.update()
 
         # generator training loop
@@ -240,6 +247,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
 
             g_solver.zero_grad()
             g_error.backward(clear_buffer=True)
+            lr = g_lr_scheduler.get_learning_rate(epoch * args.g_steps + g_step)
+            g_solver.set_learning_rate(lr)
             g_solver.update()
 
         # calculate mean errors
