@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import math
 
 
 def imread(path):
@@ -11,8 +12,8 @@ def imwrite(image, path):
 
 
 def imrescale(image, scale):
-    w, h = image.shape[:2]
-    return cv2.resize(image, (int(w * scale), int(h * scale)))
+    h, w = image.shape[:2]
+    return cv2.resize(image, (math.ceil(w * scale), math.ceil(h * scale)))
 
 
 def imresize(image, size):

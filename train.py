@@ -13,6 +13,11 @@ from nnabla.monitor import Monitor, MonitorSeries, MonitorImage
 from nnabla.ext_utils import get_extension_context
 
 
+def _pad(x, kernel, num_layer):
+    pad = int((kernel - 1) * num_layer / 2)
+    return F.pad(x, (pad, pad, pad, pad))
+
+
 def _calc_gradient_penalty(real, fake, discriminator, scope):
     alpha = F.rand(shape=real.shape)
     interpolates = alpha * real + (1.0 - alpha) * fake
@@ -132,8 +137,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
     y_real.persistent = True
 
     # padding
-    padded_x = F.pad(x, (pad, pad, pad, pad))
-    padded_rec_x = F.pad(rec_x, (pad, pad, pad, pad))
+    padded_x = _pad(x, args.kernel, args.num_layer)
+    padded_rec_x = _pad(rec_x, args.kernel, args.num_layer)
 
     # parameter scopes of discriminator and generator
     d_scope = 'd%d' % index
@@ -179,6 +184,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
 
         if index == 0:
             z_opt = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
+            noise_ = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
+        else:
             noise_ = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
 
         # discriminator training loop
@@ -272,16 +279,24 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
                     z_shape = (3, Z_opt.shape[2] - 2 * pad_noise, \
                                   Z_opt.shape[3] - 2 * pad_noise)
                 z = np.random.normal(0.0, 1.0, size=z_shape)
-                Z_in = noise_amp * z + G_z
+                padded_z = np.pad(z, [(0,), (pad_noise,), (pad_noise,)],
+                                  'constant', constant_values=0.0)
+                Z_in = noise_amp * padded_z + G_z
             elif mode == 'rec':
                 Z_in = noise_amp * Z_opt + G_z
             else:
                 raise Exception
-            x = nn.Variable.from_numpy_array(z_in)
+
+            # generate image with previous output and noise
+            x = nn.Variable.from_numpy_array(Z_in)
+            padded_x = _pad(x, args.kernel, args.num_layer)
             y = nn.Variable.from_numpy_array(G_z)
-            fake = generator(x=x, y=y, scope='g%d' % i)
+            fake = generator(x=padded_x, y=y, scope='g%d' % i)
             fake.forward(clear_buffer=True)
             G_z = fake.d
-            G_z = imscale(G_z, 1 / args.scale_factor)
+
+            transposed_G_z = np.transpose(G_z, [0, 2, 3, 1])[0]
+            transposed_G_z = imrescale(transposed_G_z, 1 / args.scale_factor)
+            G_z = np.expand_dims(np.transpose(transposed_G_z, [2, 0, 1]), axis=0)
             G_z = G_z[:, :, 0:real_next.shape[2], 0:real_next.shape[3]]
     return G_z
