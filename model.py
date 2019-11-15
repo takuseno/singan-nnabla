@@ -32,7 +32,7 @@ def generator(x, y, num_layer, fs, min_fs, kernel, pad, scope, test=False):
         h = conv_block(h, x.shape[1], kernel, 1, pad, test, 'tail')
         h = F.tanh(h)
     ind = int((y.shape[2] - h.shape[2]) / 2)
-    y = y[:, :, ind:(y.shape[2 - ind]), ind:(y.shape[3] - ind)]
+    y = y[:, :, ind:(y.shape[2] - ind), ind:(y.shape[3] - ind)]
     return y + h
 
 
