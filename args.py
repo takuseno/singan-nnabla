@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument('--g-steps', type=int, default=3)
     parser.add_argument('--niter', type=int, default=2000)
     parser.add_argument('--lam-grad', type=float, default=0.1)
-    parser.add_argument('--alpha-recon', type=float, default=1.0)
+    parser.add_argument('--alpha-recon', type=float, default=10.0)
     parser.add_argument('--image-path', type=str)
     parser.add_argument('--logdir', type=str, default='experiment')
     args = parser.parse_args()
