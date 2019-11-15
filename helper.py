@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import math
+import pickle
 
 
 def imread(path):
@@ -36,3 +37,13 @@ def create_reals_pyramid(real, stop_scale, scale_factor):
         transposed_image = np.transpose(scaled_image, [2, 0, 1])
         reals.append(np.expand_dims(normalize(transposed_image), axis=0))
     return reals
+
+
+def save_pkl(obj, path):
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def load_pkl(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)

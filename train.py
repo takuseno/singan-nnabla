@@ -8,7 +8,7 @@ import os
 
 from functools import partial
 from helper import imread, imwrite, imresize, imrescale, create_reals_pyramid
-from helper import normalize, denormalize
+from helper import normalize, denormalize, save_pkl
 from nnabla.monitor import Monitor, MonitorSeries, MonitorImage
 from nnabla.ext_utils import get_extension_context
 from nnabla.utils.learning_rate_scheduler import StepScheduler
@@ -107,6 +107,12 @@ def train(args):
         noise_amps.append(args.noise_amp)
 
         scale_num += 1
+
+    # save data
+    nn.save_parameters(os.path.join(args.logdir, 'models.h5'))
+    save_pkl(Zs, os.path.join(args.logdir, 'Zs.pkl'))
+    save_pkl(reals, os.path.join(args.logdir, 'reals.pkl'))
+    save_pkl(noise_amps, os.path.join(args.logdir, 'noise_amps.pkl'))
 
 
 
