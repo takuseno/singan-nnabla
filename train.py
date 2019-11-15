@@ -4,10 +4,13 @@ import nnabla.solvers as S
 import nnabla.functions as F
 import math
 import model
+import os
 
 from functools import partial
-from helper import imread, imresize, imrescale, create_reals_pyramid
+from helper import imread, imwrite, imresize, imrescale, create_reals_pyramid
+from helper import normalize, denormalize
 from nnabla.monitor import Monitor, MonitorSeries, MonitorImage
+from nnabla.ext_utils import get_extension_context
 
 
 def _calc_gradient_penalty(real, fake, discriminator, scope):
@@ -33,25 +36,21 @@ def _create_real_images(args):
 
     args.num_scales = int((math.log(args.min_size / (real_raw.shape[1]),
                                     args.scale_factor_init))) + 1
-    print('num_scales', args.num_scales)
+    print('num_scales:', args.num_scales)
 
     scale2stop = int(math.log(min([args.max_size, edge]) / edge,
                               args.scale_factor_init))
-    print('scale2stop', scale2stop)
+    print('scale2stop:', scale2stop)
 
     args.stop_scale = args.num_scales - scale2stop
 
     args.scale1 = min(args.max_size / edge, 1)
-    print('scale1', args.scale1)
+    print('scale1:', args.scale1)
 
     real = imrescale(real_raw, args.scale1)
-    print('real image shape', real.shape)
+    print('real image shape:', real.shape)
 
     args.scale_factor = (args.min_size / real.shape[0]) ** (1 / args.stop_scale)
-
-    scale = min(args.max_size / edge, 1)
-    real = imrescale(real_raw, scale)
-    print('image shape:', real.shape)
 
     reals = create_reals_pyramid(real, args.stop_scale, args.scale_factor)
     for i in range(len(reals)):
@@ -61,6 +60,10 @@ def _create_real_images(args):
 
 
 def train(args):
+    if args.gpu:
+        ctx = get_extension_context('cudnn', device_id='0')
+        nn.set_default_context(ctx)
+
     # generator model
     generator = partial(model.generator, num_layer=args.num_layer,
                         fs=args.fs, min_fs=args.min_fs, kernel=args.kernel,
@@ -73,6 +76,10 @@ def train(args):
 
     # create real images
     reals = _create_real_images(args)
+    # save real images
+    for i, real in enumerate(reals):
+        image_path = os.path.join(args.logdir, 'real_%d.png' % i)
+        imwrite(denormalize(np.transpose(real, [0, 2, 3, 1])[0]), image_path)
 
     # nnabla monitor
     monitor = Monitor(args.logdir)
@@ -104,10 +111,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
     monitor_train_d_fake = MonitorSeries('train_d_fake%d' % index, monitor)
     monitor_train_g_fake = MonitorSeries('train_g_fake%d' % index, monitor)
     monitor_train_g_rec = MonitorSeries('train_g_rec%d' % index, monitor)
-    normalize_method = lambda x: np.array(255 * (x / 2 + 0.5), dtype=np.uint8)
     monitor_image_g = MonitorImage('image_g_%d' % index, monitor, interval=1,
-                                   num_images=1,
-                                   normalize_method=normalize_method)
+                                   num_images=1, normalize_method=denormalize)
 
     real = np.array(reals[index])
 
