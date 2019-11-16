@@ -29,6 +29,10 @@ def get_args():
     parser.add_argument('--lam-grad', type=float, default=0.1)
     parser.add_argument('--alpha-recon', type=float, default=10.0)
     parser.add_argument('--image-path', type=str)
+    parser.add_argument('--load', type=str)
+    parser.add_argument('--load-reals', type=str)
+    parser.add_argument('--load-noise-amps', type=str)
+    parser.add_argument('--load-Zs', type=str)
     parser.add_argument('--logdir', type=str, default='experiment')
     args = parser.parse_args()
 

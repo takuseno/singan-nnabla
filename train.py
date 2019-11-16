@@ -8,7 +8,7 @@ import os
 
 from functools import partial
 from helper import imread, imwrite, imresize, imrescale, create_reals_pyramid
-from helper import normalize, denormalize, save_pkl
+from helper import normalize, denormalize, save_pkl, rescale_generated_images
 from nnabla.monitor import Monitor, MonitorSeries, MonitorImage
 from nnabla.ext_utils import get_extension_context
 from nnabla.utils.learning_rate_scheduler import StepScheduler
@@ -49,6 +49,7 @@ def _create_real_images(args):
     print('scale2stop:', scale2stop)
 
     args.stop_scale = args.num_scales - scale2stop
+    print('stop_scale:', args.stop_scale)
 
     args.scale1 = min(args.max_size / edge, 1)
     print('scale1:', args.scale1)
@@ -93,9 +94,8 @@ def train(args):
     Zs = []
     in_s = 0
     noise_amps = []
-    scale_num = 0
 
-    while scale_num < args.stop_scale + 1:
+    for scale_num in range(args.stop_scale + 1):
         fs = min(args.fs_init * 2 ** (scale_num // 4), 128)
         min_fs = min(args.min_fs_init * 2 ** (scale_num // 4), 128)
 
@@ -106,14 +106,13 @@ def train(args):
         Zs.append(z_curr)
         noise_amps.append(args.noise_amp)
 
-        scale_num += 1
-
     # save data
     nn.save_parameters(os.path.join(args.logdir, 'models.h5'))
     save_pkl(Zs, os.path.join(args.logdir, 'Zs.pkl'))
     save_pkl(reals, os.path.join(args.logdir, 'reals.pkl'))
     save_pkl(noise_amps, os.path.join(args.logdir, 'noise_amps.pkl'))
 
+    return Zs, reals, noise_amps
 
 
 def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
@@ -127,13 +126,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
                                    num_images=1, normalize_method=denormalize)
 
     real = np.array(reals[index])
-
     ch, w, h = real.shape[1], real.shape[2], real.shape[3]
-    pad = int((args.kernel - 1) * args.num_layer / 2)
-
-    # input noise
-    fixed_noise = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
-    z_opt = np.zeros_like(fixed_noise)
 
     # inputs
     x = nn.Variable((1, ch, w, h))
@@ -235,7 +228,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
 
             d_solver.zero_grad()
             d_error.backward(clear_buffer=True)
-            lr = d_lr_scheduler.get_learning_rate(epoch * args.d_steps + d_step)
+            lr = d_lr_scheduler.get_learning_rate(epoch)
             d_solver.set_learning_rate(lr)
             d_solver.update()
 
@@ -253,7 +246,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
 
             g_solver.zero_grad()
             g_error.backward(clear_buffer=True)
-            lr = g_lr_scheduler.get_learning_rate(epoch * args.g_steps + g_step)
+            lr = g_lr_scheduler.get_learning_rate(epoch)
             g_solver.set_learning_rate(lr)
             g_solver.update()
 
@@ -310,8 +303,6 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
             fake.forward(clear_buffer=True)
             G_z = fake.d
 
-            transposed_G_z = np.transpose(G_z, [0, 2, 3, 1])[0]
-            transposed_G_z = imrescale(transposed_G_z, 1 / args.scale_factor)
-            G_z = np.expand_dims(np.transpose(transposed_G_z, [2, 0, 1]), axis=0)
+            G_z = rescale_generated_images(G_z, 1 / args.scale_factor)
             G_z = G_z[:, :, 0:real_next.shape[2], 0:real_next.shape[3]]
     return G_z
