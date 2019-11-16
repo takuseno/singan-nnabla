@@ -180,6 +180,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
     g_solver.set_parameters(g_params)
 
     # training loop
+    z_opt = np.zeros((1, ch, w, h))
     for epoch in range(args.niter):
         sum_d_real_error = 0.0
         sum_d_fake_error = 0.0
