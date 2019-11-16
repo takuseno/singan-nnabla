@@ -211,7 +211,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
                     args.noise_amp = args.noise_amp_init * rmse
             else:
                 prev = _draw_concat(args, index, generator, Zs, reals,
-                                    noise_amps, in_s, 'rec')
+                                    noise_amps, in_s, 'rand')
 
             # input noise
             if index == 0:
