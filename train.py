@@ -20,7 +20,7 @@ def _pad(x, kernel, num_layer):
 
 
 def _calc_gradient_penalty(real, fake, discriminator, scope):
-    alpha = F.rand(shape=real.shape)
+    alpha = F.rand(shape=(1, 1, 1, 1))
     interpolates = alpha * real + (1.0 - alpha) * fake
     interpolates.need_grad = True
 
