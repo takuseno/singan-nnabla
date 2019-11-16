@@ -22,20 +22,20 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
     images_curr = []
     for scale_num, (Z_opt, noise_amp) in enumerate(zip(Zs, noise_amps)):
         real = reals[scale_num]
+        ch, w, h = real.shape[1:]
 
         images_prev = images_curr
         images_curr = []
 
         # inference graph
-        x = nn.Variable((1, 3, real.shape[2], real.shape[3]))
-        y = nn.Variable((1, 3, real.shape[2], real.shape[3]))
+        x = nn.Variable((1, ch, w, h))
+        y = nn.Variable((1, ch, w, h))
         padded_x = _pad(x, args.kernel, args.num_layer)
         fake = generator(x=padded_x, y=y, scope='g%d' % scale_num)
 
         for i in range(num_samples):
             if scale_num >= gen_start:
-                z_curr = np.random.normal(
-                    0.0, 1.0, size=(1, 3, real.shape[2], real.shape[3]))
+                z_curr = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
             else:
                 z_curr = Z_opt
 

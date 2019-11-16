@@ -188,10 +188,10 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
         sum_g_rec_error = 0.0
 
         if index == 0:
-            z_opt = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
-            noise_ = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
+            z_opt = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
+            noise_ = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
         else:
-            noise_ = np.random.normal(0.0, 1.0, size=(1, 3, w, h))
+            noise_ = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
 
         # discriminator training loop
         for d_step in range(args.d_steps):

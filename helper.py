@@ -27,6 +27,7 @@ def rescale_generated_images(images, scale):
         rets.append(normalized_image)
     return np.array(rets)
 
+
 def imresize(image, size):
     return cv2.resize(image, size)
 

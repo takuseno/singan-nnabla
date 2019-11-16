@@ -33,6 +33,7 @@ def get_args():
     parser.add_argument('--load-reals', type=str)
     parser.add_argument('--load-noise-amps', type=str)
     parser.add_argument('--load-Zs', type=str)
+    parser.add_argument('--gen-start', type=int, default=0)
     parser.add_argument('--logdir', type=str, default='experiment')
     args = parser.parse_args()
 
