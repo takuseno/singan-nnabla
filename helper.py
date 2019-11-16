@@ -17,6 +17,16 @@ def imrescale(image, scale):
     return cv2.resize(image, (math.ceil(w * scale), math.ceil(h * scale)))
 
 
+def rescale_generated_images(images, scale):
+    rets = []
+    for image in images:
+        denormalized_image = denormalize(image)
+        transposed_image = np.transpose(denormalized_image, [1, 2, 0])
+        scaled_image = imrescale(transposed_image, scale)
+        normalized_image = normalize(np.transpose(scaled_image, [2, 0, 1]))
+        rets.append(normalized_image)
+    return np.array(rets)
+
 def imresize(image, size):
     return cv2.resize(image, size)
 
@@ -26,7 +36,8 @@ def normalize(image):
 
 
 def denormalize(image):
-    return np.array((image / 2.0 + 0.5) * 255.0, dtype=np.uint8)
+    clipped_image = np.clip(image, -1.0, 1.0)
+    return np.array((clipped_image / 2.0 + 0.5) * 255.0, dtype=np.uint8)
 
 
 def create_reals_pyramid(real, stop_scale, scale_factor):
