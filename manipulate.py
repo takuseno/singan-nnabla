@@ -9,7 +9,7 @@ from train import _pad
 from nnabla.ext_utils import get_extension_context
 
 
-def generate(args, Zs, reals, noise_amps, num_samples=50):
+def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
     if args.gpu:
         ctx = get_extension_context('cudnn', device_id='0')
         nn.set_default_context(ctx)
@@ -33,17 +33,21 @@ def generate(args, Zs, reals, noise_amps, num_samples=50):
         fake = generator(x=padded_x, y=y, scope='g%d' % scale_num)
 
         for i in range(num_samples):
-            z_curr = np.random.normal(
-                0.0, 1.0, size=(1, 3, real.shape[2], real.shape[3]))
+            if scale_num >= gen_start:
+                z_curr = np.random.normal(
+                    0.0, 1.0, size=(1, 3, real.shape[2], real.shape[3]))
+            else:
+                z_curr = Z_opt
 
             if scale_num == 0:
-                I_prev = np.zeros_like(reals[0])
+                I_prev = np.zeros_like(real)
             else:
                 I_prev = rescale_generated_images(
                     images_prev[i], 1 / args.scale_factor)
+                I_prev = I_prev[:, :, :real.shape[2], :real.shape[3]]
 
             # generate image
-            x.d = noise_amp * (z_curr) + I_prev
+            x.d = noise_amp * z_curr + I_prev
             y.d = I_prev
             fake.forward(clear_buffer=True)
 
