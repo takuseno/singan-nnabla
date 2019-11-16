@@ -281,16 +281,8 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
             noise_amp = noise_amps[i]
             G_z = G_z[:, :, 0:real_curr.shape[2], 0:real_curr.shape[3]]
             if mode == 'rand':
-                if i == 0:
-                    z_shape = (1, Z_opt.shape[2] - 2 * pad_noise, \
-                                  Z_opt.shape[3] - 2 * pad_noise)
-                else:
-                    z_shape = (3, Z_opt.shape[2] - 2 * pad_noise, \
-                                  Z_opt.shape[3] - 2 * pad_noise)
-                z = np.random.normal(0.0, 1.0, size=z_shape)
-                padded_z = np.pad(z, [(0,), (pad_noise,), (pad_noise,)],
-                                  'constant', constant_values=0.0)
-                Z_in = noise_amp * padded_z + G_z
+                z = np.random.normal(0.0, 1.0, size=(1,) + real_curr.shape[1:])
+                Z_in = noise_amp * z + G_z
             elif mode == 'rec':
                 Z_in = noise_amp * Z_opt + G_z
             else:
