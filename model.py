@@ -29,7 +29,9 @@ def generator(x, y, num_layer, fs, min_fs, kernel, pad, scope, test=False):
     with nn.parameter_scope(scope):
         h = conv_block(x, fs, kernel, 1, pad, test, 'head')
         h = middle_blocks(h, num_layer, fs, min_fs, kernel, pad, test)
-        h = conv_block(h, x.shape[1], kernel, 1, pad, test, 'tail')
+        h = PF.convolution(h, x.shape[1], (kernel, kernel),
+                           stride=(1, 1), pad=(pad, pad),
+                           w_init=NormalInitializer(0.02), name='tail')
         h = F.tanh(h)
     ind = int((y.shape[2] - h.shape[2]) / 2)
     y = y[:, :, ind:(y.shape[2] - ind), ind:(y.shape[3] - ind)]
@@ -40,5 +42,7 @@ def discriminator(x, num_layer, fs, min_fs, kernel, pad, scope, test=False):
     with nn.parameter_scope(scope):
         h = conv_block(x, fs, kernel, 1, pad, test, 'head')
         h = middle_blocks(h, num_layer, fs, min_fs, kernel, pad, test)
-        h = conv_block(h, x.shape[1], kernel, 1, pad, test, 'tail')
-    return F.reshape(F.mean(h, axis=[1, 2, 3]), (-1, 1), inplace=False)
+        h = PF.convolution(h, x.shape[1], (kernel, kernel),
+                           stride=(1, 1), pad=(pad, pad),
+                           w_init=NormalInitializer(0.02), name='tail')
+    return h
