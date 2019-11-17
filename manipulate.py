@@ -35,15 +35,18 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
 
         for i in range(num_samples):
             if scale_num >= gen_start:
-                z_curr = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
+                if scale_num == 0:
+                    z_curr = np.random.normal(0.0, 1.0, size=(1, 1, w, h))
+                else:
+                    z_curr = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
             else:
                 z_curr = Z_opt
 
             if scale_num == 0:
                 I_prev = np.zeros_like(real)
             else:
-                I_prev = rescale_generated_images(
-                    images_prev[i], 1 / args.scale_factor)
+                I_prev = rescale_generated_images(images_prev[i],
+                                                  1 / args.scale_factor)
                 I_prev = I_prev[:, :, :real.shape[2], :real.shape[3]]
 
             # generate image

@@ -28,7 +28,7 @@ def _calc_gradient_penalty(real, fake, discriminator, scope):
 
     grads = nn.grad([disc_interpolates], [interpolates])
     norms = [F.sum(g ** 2.0, [1, 2, 3]) ** 0.5 for g in grads]
-    r1_zc_gp = sum([F.mean(norm ** 2.0) for norm in norms])
+    r1_zc_gp = sum([F.mean((norm - 1.0) ** 2.0) for norm in norms])
 
     return r1_zc_gp
 
@@ -68,16 +68,6 @@ def train(args):
         ctx = get_extension_context('cudnn', device_id='0')
         nn.set_default_context(ctx)
 
-    # generator model
-    generator = partial(model.generator, num_layer=args.num_layer,
-                        fs=args.fs, min_fs=args.min_fs, kernel=args.kernel,
-                        pad=args.pad)
-
-    # discriminator model
-    discriminator = partial(model.discriminator, num_layer=args.num_layer,
-                            fs=args.fs, min_fs=args.min_fs, kernel=args.kernel,
-                            pad=args.pad)
-
     # create real images
     reals = _create_real_images(args)
     # save real images
@@ -93,8 +83,18 @@ def train(args):
     noise_amps = []
 
     for scale_num in range(args.stop_scale + 1):
-        fs = min(args.fs_init * 2 ** (scale_num // 4), 128)
-        min_fs = min(args.min_fs_init * 2 ** (scale_num // 4), 128)
+        fs = min(args.fs_init * (2 ** (scale_num // 4)), 128)
+        min_fs = min(args.min_fs_init * (2 ** (scale_num // 4)), 128)
+
+        # generator model
+        generator = partial(model.generator, num_layer=args.num_layer,
+                            fs=fs, min_fs=min_fs, kernel=args.kernel,
+                            pad=args.pad)
+
+        # discriminator model
+        discriminator = partial(model.discriminator, num_layer=args.num_layer,
+                                fs=fs, min_fs=min_fs, kernel=args.kernel,
+                                pad=args.pad)
 
         z_curr, in_s = train_single_scale(args, scale_num, generator,
                                           discriminator, reals, Zs, in_s,
@@ -185,8 +185,8 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
         sum_g_rec_error = 0.0
 
         if index == 0:
-            z_opt = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
-            noise_ = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
+            z_opt = np.random.normal(0.0, 1.0, size=(1, 1, w, h))
+            noise_ = np.random.normal(0.0, 1.0, size=(1, 1, w, h))
         else:
             noise_ = np.random.normal(0.0, 1.0, size=(1, ch, w, h))
 
@@ -278,7 +278,11 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
             noise_amp = noise_amps[i]
             G_z = G_z[:, :, 0:real_curr.shape[2], 0:real_curr.shape[3]]
             if mode == 'rand':
-                z = np.random.normal(0.0, 1.0, size=(1,) + real_curr.shape[1:])
+                if i == 0:
+                    z_shape = (1, 1) + real_curr.shape[2:]
+                else:
+                    z_shape = (1,) + real_curr.shape[1:]
+                z = np.random.normal(0.0, 1.0, size=z_shape)
                 Z_in = noise_amp * z + G_z
             elif mode == 'rec':
                 Z_in = noise_amp * Z_opt + G_z
@@ -286,10 +290,12 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
                 raise Exception
 
             # generate image with previous output and noise
-            x = nn.Variable.from_numpy_array(Z_in)
+            x = nn.Variable((1,) + real_curr.shape[1:])
             padded_x = _pad(x, args.kernel, args.num_layer)
-            y = nn.Variable.from_numpy_array(G_z)
+            y = nn.Variable((1,) + real_curr.shape[1:])
             fake = generator(x=padded_x, y=y, scope='g%d' % i)
+            x.d = Z_in
+            y.d = G_z
             fake.forward(clear_buffer=True)
             G_z = fake.d
 
