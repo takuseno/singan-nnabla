@@ -19,3 +19,8 @@ $ python main.py --image-path <path-to-image> --gpu
 | real | generated |
 |:-:|:-:|
 | <img src="sample_images/zebra_real.png"></img> | <img src="sample_images/zebra_generated.png"></img> |
+
+### lightning
+| real | generated |
+|:-:|:-:|
+| <img src="sample_images/lightning_real.png"></img> | <img src="sample_images/lightning_generated.png"></img> |
