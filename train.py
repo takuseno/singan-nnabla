@@ -27,7 +27,7 @@ def _calc_gradient_penalty(real, fake, discriminator, scope):
     disc_interpolates = discriminator(x=interpolates, scope=scope)
 
     grads = nn.grad([disc_interpolates], [interpolates])
-    norms = [F.sum(g ** 2.0, [1, 2, 3]) ** 0.5 for g in grads]
+    norms = [F.sum(g ** 2.0, axis=1) ** 0.5 for g in grads]
     r1_zc_gp = sum([F.mean((norm - 1.0) ** 2.0) for norm in norms])
 
     return r1_zc_gp
