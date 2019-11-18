@@ -13,3 +13,9 @@ $ pip install -r requirements.txt
 ```
 $ python main.py --image-path <path-to-image> --gpu
 ```
+
+## sample image
+### zebra
+| real | generated |
+|:-:|:-:|
+| <img src="sample_images/zebra_real.png"></img> | <img src="sample_images/zebra_generated.png"></img> |
