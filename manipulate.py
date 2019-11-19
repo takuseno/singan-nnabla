@@ -14,15 +14,19 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
         ctx = get_extension_context('cudnn', device_id='0')
         nn.set_default_context(ctx)
 
-    # generator model
-    generator = partial(model.generator, num_layer=args.num_layer,
-                        fs=args.fs, min_fs=args.min_fs, kernel=args.kernel,
-                        pad=args.pad, test=True)
+    
 
     images_curr = []
     for scale_num, (Z_opt, noise_amp) in enumerate(zip(Zs, noise_amps)):
         real = reals[scale_num]
         ch, w, h = real.shape[1:]
+
+        # generator model
+        fs = min(args.fs_init * (2 ** (scale_num // 4)), 128)
+        min_fs = min(args.min_fs_init * (2 ** (scale_num // 4)), 128)
+        generator = partial(model.generator, num_layer=args.num_layer,
+                            fs=fs, min_fs=min_fs, kernel=args.kernel,
+                            pad=args.pad, test=True)
 
         images_prev = images_curr
         images_curr = []

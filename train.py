@@ -78,6 +78,7 @@ def train(args):
     # nnabla monitor
     monitor = Monitor(args.logdir)
 
+    Gs = []
     Zs = []
     in_s = 0
     noise_amps = []
@@ -97,9 +98,10 @@ def train(args):
                                 pad=args.pad)
 
         z_curr, in_s = train_single_scale(args, scale_num, generator,
-                                          discriminator, reals, Zs, in_s,
+                                          discriminator, reals, Gs, Zs, in_s,
                                           noise_amps, monitor)
 
+        Gs.append(generator)
         Zs.append(z_curr)
         noise_amps.append(args.noise_amp)
 
@@ -112,8 +114,8 @@ def train(args):
     return Zs, reals, noise_amps
 
 
-def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
-                       noise_amps, monitor):
+def train_single_scale(args, index, generator, discriminator, reals, Gs, Zs,
+                       in_s, noise_amps, monitor):
     # prepare log monitors
     monitor_train_d_real = MonitorSeries('train_d_real%d' % index, monitor)
     monitor_train_d_fake = MonitorSeries('train_d_fake%d' % index, monitor)
@@ -200,14 +202,14 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
                     z_prev = np.zeros_like(z_opt)
                     args.noise_amp = 1
                 else:
-                    prev = _draw_concat(args, index, generator, Zs, reals,
+                    prev = _draw_concat(args, index, generator, Gs, Zs, reals,
                                         noise_amps, in_s, 'rand')
-                    z_prev = _draw_concat(args, index, generator, Zs, reals,
-                                          noise_amps, in_s, 'rec')
+                    z_prev = _draw_concat(args, index, generator, Gs, Zs,
+                                          reals, noise_amps, in_s, 'rec')
                     rmse = np.sqrt(np.mean((real - z_prev) ** 2))
                     args.noise_amp = args.noise_amp_init * rmse
             else:
-                prev = _draw_concat(args, index, generator, Zs, reals,
+                prev = _draw_concat(args, index, generator, Gs, Zs, reals,
                                     noise_amps, in_s, 'rand')
 
             # input noise
@@ -267,7 +269,7 @@ def train_single_scale(args, index, generator, discriminator, reals, Zs, in_s,
     return z_opt, in_s
 
 
-def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
+def _draw_concat(args, index, generator, Gs, Zs, reals, noise_amps, in_s, mode):
     G_z = in_s
     if index > 0:
         pad_noise = int(((args.kernel - 1) * args.num_layer) / 2)
@@ -293,7 +295,7 @@ def _draw_concat(args, index, generator, Zs, reals, noise_amps, in_s, mode):
             x = nn.Variable((1,) + real_curr.shape[1:])
             padded_x = _pad(x, args.kernel, args.num_layer)
             y = nn.Variable((1,) + real_curr.shape[1:])
-            fake = generator(x=padded_x, y=y, scope='g%d' % i)
+            fake = Gs[i](x=padded_x, y=y, scope='g%d' % i)
             x.d = Z_in
             y.d = G_z
             fake.forward(clear_buffer=True)
