@@ -41,13 +41,38 @@ def denormalize(image):
     return np.array((clipped_image / 2.0 + 0.5) * 255.0, dtype=np.uint8)
 
 
-def create_reals_pyramid(real, stop_scale, scale_factor):
+def _create_reals_pyramid(real, stop_scale, scale_factor):
     reals = []
     for i in range(stop_scale + 1):
         scale = scale_factor ** (stop_scale - i)
         scaled_image = imrescale(real, scale)
         transposed_image = np.transpose(scaled_image, [2, 0, 1])
         reals.append(np.expand_dims(normalize(transposed_image), axis=0))
+    return reals
+
+
+def create_real_images(args):
+    real_raw = imread(args.image_path)
+    edge = max([real_raw.shape[0], real_raw.shape[1]])
+
+    args.num_scales = int((math.log(args.min_size / (real_raw.shape[1]),
+                                    args.scale_factor_init))) + 1
+
+    scale2stop = int(math.log(min([args.max_size, edge]) / edge,
+                              args.scale_factor_init))
+
+    args.stop_scale = args.num_scales - scale2stop
+
+    args.scale1 = min(args.max_size / edge, 1)
+
+    real = imrescale(real_raw, args.scale1)
+
+    args.scale_factor = (args.min_size / real.shape[0]) ** (1 / args.stop_scale)
+
+    reals = _create_reals_pyramid(real, args.stop_scale, args.scale_factor)
+    for i, real in enumerate(reals):
+        print('real image shape at %d =' % i, real.shape)
+
     return reals
 
 
