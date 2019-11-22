@@ -25,7 +25,6 @@ def train(args):
 
     prev_models = []
     Zs = []
-    in_s = 0
     noise_amps = []
 
     for scale_num in range(args.stop_scale + 1):
@@ -37,9 +36,8 @@ def train(args):
                       args.d_lr, args.g_lr, args.beta1, args.gamma,
                       args.lr_milestone, str(scale_num))
 
-        z_curr, in_s = train_single_scale(args, scale_num, model, reals,
-                                          prev_models, Zs, in_s, noise_amps,
-                                          monitor)
+        z_curr = train_single_scale(args, scale_num, model, reals,
+                                    prev_models, Zs, noise_amps, monitor)
 
         prev_models.append(model)
         Zs.append(z_curr)
@@ -54,7 +52,7 @@ def train(args):
     return Zs, reals, noise_amps
 
 
-def train_single_scale(args, index, model, reals, prev_models, Zs, in_s,
+def train_single_scale(args, index, model, reals, prev_models, Zs,
                        noise_amps, monitor):
     # prepare log monitors
     monitor_train_d_real = MonitorSeries('train_d_real%d' % index, monitor)
@@ -69,10 +67,10 @@ def train_single_scale(args, index, model, reals, prev_models, Zs, in_s,
 
     # training loop
     for epoch in range(args.niter):
-        sum_d_real_error = 0.0
-        sum_d_fake_error = 0.0
-        sum_g_fake_error = 0.0
-        sum_g_rec_error = 0.0
+        d_real_error_history = []
+        d_fake_error_history = []
+        g_fake_error_history = []
+        g_rec_error_history = []
 
         if index == 0:
             z_opt = np.random.normal(0.0, 1.0, size=(1, 1, w, h))
@@ -87,19 +85,18 @@ def train_single_scale(args, index, model, reals, prev_models, Zs, in_s,
             if d_step == 0 and epoch == 0:
                 if index == 0:
                     prev = np.zeros_like(noise_)
-                    in_s = prev
                     z_prev = np.zeros_like(z_opt)
                     args.noise_amp = 1
                 else:
                     prev = _draw_concat(args, index, prev_models, Zs, reals,
-                                        noise_amps, in_s, 'rand')
+                                        noise_amps, 'rand')
                     z_prev = _draw_concat(args, index, prev_models, Zs,
-                                          reals, noise_amps, in_s, 'rec')
+                                          reals, noise_amps, 'rec')
                     rmse = np.sqrt(np.mean((real - z_prev) ** 2))
                     args.noise_amp = args.noise_amp_init * rmse
             else:
                 prev = _draw_concat(args, index, prev_models, Zs, reals,
-                                    noise_amps, in_s, 'rand')
+                                    noise_amps, 'rand')
 
             # input noise
             if index == 0:
@@ -110,37 +107,31 @@ def train_single_scale(args, index, model, reals, prev_models, Zs, in_s,
             fake_error, real_error = model.update_discriminator(epoch, noise,
                                                                 prev)
             # accumulate errors for logging
-            sum_d_real_error += real_error
-            sum_d_fake_error += fake_error
+            d_real_error_history.append(real_error)
+            d_fake_error_history.append(fake_error)
 
         # generator training loop
         for g_step in range(args.g_steps):
             fake_error, rec_error = model.update_generator(
                 epoch, noise, prev, args.noise_amp * z_opt + z_prev, z_prev)
             # accumulate errors for logging
-            sum_g_fake_error += fake_error
-            sum_g_rec_error += rec_error
-
-        # calculate mean errors
-        mean_d_real_error = sum_d_real_error / args.niter / args.d_steps
-        mean_d_fake_error = sum_d_fake_error / args.niter / args.d_steps
-        mean_g_fake_error = sum_g_fake_error / args.niter / args.g_steps
-        mean_g_rec_error = sum_g_rec_error / args.niter / args.g_steps
+            g_fake_error_history.append(fake_error)
+            g_rec_error_history.append(rec_error)
 
         # save errors
-        monitor_train_d_real.add(epoch, mean_d_real_error)
-        monitor_train_d_fake.add(epoch, mean_d_fake_error)
-        monitor_train_g_fake.add(epoch, mean_g_fake_error)
-        monitor_train_g_rec.add(epoch, mean_g_rec_error)
+        monitor_train_d_real.add(epoch, np.mean(d_real_error_history))
+        monitor_train_d_fake.add(epoch, np.mean(d_fake_error_history))
+        monitor_train_g_fake.add(epoch, np.mean(g_fake_error_history))
+        monitor_train_g_rec.add(epoch, np.mean(g_rec_error_history))
 
         # save generated image
         monitor_image_g.add(epoch, model.generate(noise, prev))
 
-    return z_opt, in_s
+    return z_opt
 
 
-def _draw_concat(args, index, prev_models, Zs, reals, noise_amps, in_s, mode):
-    G_z = in_s
+def _draw_concat(args, index, prev_models, Zs, reals, noise_amps, mode):
+    G_z = np.zeros_like(reals[0])
     if index > 0:
         pad_noise = int(((args.kernel - 1) * args.num_layer) / 2)
         for i in range(index):
