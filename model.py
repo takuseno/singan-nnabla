@@ -73,13 +73,6 @@ class Model:
     def __init__(self, real, num_layer, fs, min_fs, kernel, pad, lam_grad,
                  alpha_recon, d_lr, g_lr, beta1, gamma, lr_milestone, scope,
                  test=False):
-        self._build(real, num_layer, fs, min_fs, kernel, pad, lam_grad,
-                    alpha_recon, d_lr, g_lr, beta1, gamma, lr_milestone,
-                    scope, test)
-
-    def _build(self, real, num_layer, fs, min_fs, kernel, pad, lam_grad,
-               alpha_recon, d_lr, g_lr, beta1, gamma, lr_milestone, scope,
-               test):
         # generator model
         generator_fn = partial(generator, num_layer=num_layer, fs=fs,
                                min_fs=min_fs, kernel=kernel, pad=pad,
