@@ -6,7 +6,7 @@ from helper import denormalize, imwrite, rescale_generated_images
 
 
 def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
-    images_curr = []
+    curr_images = []
     for scale_num, (Z_opt, noise_amp) in enumerate(zip(Zs, noise_amps)):
         real = reals[scale_num]
         ch, w, h = real.shape[1:]
@@ -19,8 +19,8 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
                       beta1=0.0, gamma=0.0, lr_milestone=0,
                       scope=str(scale_num), test=True)
 
-        images_prev = images_curr
-        images_curr = []
+        prev_images = curr_images
+        curr_images = []
 
         for i in range(num_samples):
             if scale_num >= gen_start:
@@ -32,18 +32,19 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
                 z_curr = Z_opt
 
             if scale_num == 0:
-                I_prev = np.zeros_like(real)
+                prev_image = np.zeros_like(real)
             else:
-                I_prev = rescale_generated_images(images_prev[i],
-                                                  1 / args.scale_factor)
-                I_prev = I_prev[:, :, :real.shape[2], :real.shape[3]]
+                prev_image = rescale_generated_images(prev_images[i],
+                                                      1 / args.scale_factor)
+                prev_image = prev_image[:, :, :real.shape[2], :real.shape[3]]
 
             # generate image
-            I_curr = model.generate(noise_amp * z_curr + I_prev, I_prev)
+            curr_image = model.generate(
+                noise_amp * z_curr + prev_image, prev_image)
 
             if scale_num == len(reals) - 1:
                 path = os.path.join(args.logdir, 'generated_image%d.png' % i)
-                image = denormalize(np.transpose(I_curr[0], [1, 2, 0]))
+                image = denormalize(np.transpose(curr_image[0], [1, 2, 0]))
                 imwrite(image, path)
 
-            images_curr.append(I_curr)
+            curr_images.append(curr_image)
