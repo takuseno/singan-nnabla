@@ -13,9 +13,11 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
 
         fs = min(args.fs_init * (2 ** (scale_num // 4)), 128)
         min_fs = min(args.min_fs_init * (2 ** (scale_num // 4)), 128)
-        model = Model(real, args.num_layer, fs, min_fs, args.kernel, args.pad,
-                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, str(scale_num),
-                      test=True)
+        model = Model(real=real, num_layer=args.num_layer, fs=fs,
+                      min_fs=min_fs, kernel=args.kernel, pad=args.pad,
+                      lam_grad=0.0, alpha_recon=0.0, d_lr=0.0, g_lr=0.0,
+                      beta1=0.0, gamma=0.0, lr_milestone=0,
+                      scope=str(scale_num), test=True)
 
         images_prev = images_curr
         images_curr = []
@@ -41,7 +43,7 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
 
             if scale_num == len(reals) - 1:
                 path = os.path.join(args.logdir, 'generated_image%d.png' % i)
-                image = np.transpose(I_curr[0], [1, 2, 0])
-                imwrite(denormalize(image), path)
+                image = denormalize(np.transpose(I_curr[0], [1, 2, 0]))
+                imwrite(image, path)
 
             images_curr.append(I_curr)

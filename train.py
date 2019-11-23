@@ -31,10 +31,12 @@ def train(args):
         fs = min(args.fs_init * (2 ** (scale_num // 4)), 128)
         min_fs = min(args.min_fs_init * (2 ** (scale_num // 4)), 128)
 
-        model = Model(reals[scale_num], args.num_layer, fs, min_fs,
-                      args.kernel, args.pad, args.lam_grad, args.alpha_recon,
-                      args.d_lr, args.g_lr, args.beta1, args.gamma,
-                      args.lr_milestone, str(scale_num))
+        model = Model(real=reals[scale_num], num_layer=args.num_layer, fs=fs,
+                      min_fs=min_fs, kernel=args.kernel, pad=args.pad,
+                      lam_grad=args.lam_grad, alpha_recon=args.alpha_recon,
+                      d_lr=args.d_lr, g_lr=args.g_lr, beta1=args.beta1,
+                      gamma=args.gamma, lr_milestone=args.lr_milestone,
+                      scope=str(scale_num))
 
         z_curr = train_single_scale(args, scale_num, model, reals,
                                     prev_models, Zs, noise_amps, monitor)
@@ -104,16 +106,18 @@ def train_single_scale(args, index, model, reals, prev_models, Zs,
             else:
                 noise = args.noise_amp * noise_ + prev
 
-            fake_error, real_error = model.update_discriminator(epoch, noise,
-                                                                prev)
+            fake_error, real_error = model.update_d(epoch, noise, prev)
+
             # accumulate errors for logging
             d_real_error_history.append(real_error)
             d_fake_error_history.append(fake_error)
 
         # generator training loop
         for g_step in range(args.g_steps):
-            fake_error, rec_error = model.update_generator(
-                epoch, noise, prev, args.noise_amp * z_opt + z_prev, z_prev)
+            noise_rec = args.noise_amp * z_opt + z_prev
+            fake_error, rec_error = model.update_g(epoch, noise, prev,
+                                                   noise_rec, z_prev)
+
             # accumulate errors for logging
             g_fake_error_history.append(fake_error)
             g_rec_error_history.append(rec_error)
@@ -139,7 +143,6 @@ def _draw_concat(args, index, prev_models, Zs, reals, noise_amps, mode):
             real_curr = reals[i]
             real_next = reals[i + 1]
             noise_amp = noise_amps[i]
-            G_z = G_z[:, :, 0:real_curr.shape[2], 0:real_curr.shape[3]]
 
             if mode == 'rand':
                 if i == 0:

@@ -147,7 +147,7 @@ class Model:
         return self.fake.d
 
 
-    def update_generator(self, epoch, x, y, rec_x, rec_y):
+    def update_g(self, epoch, x, y, rec_x, rec_y):
         self.x.d = x
         self.y.d = y
         self.rec_x.d = rec_x
@@ -163,7 +163,7 @@ class Model:
         return fake_error, rec_error
 
 
-    def update_discriminator(self, epoch, x, y):
+    def update_d(self, epoch, x, y):
         self.x.d = x
         self.y.d = y
         self.d_error.forward()
