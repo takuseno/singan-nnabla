@@ -105,7 +105,8 @@ class Model:
 
         # discriminate images
         p_real = discriminator_fn(x=y_real)
-        p_fake = discriminator_fn(x=fake_without_grads)
+        p_fake = discriminator_fn(x=self.fake)
+        p_fake_without_grads = discriminator_fn(x=fake_without_grads)
 
         # gradient penalty for discriminator
         grad_penalty = _calc_gradient_penalty(y_real, fake_without_grads,
@@ -113,7 +114,7 @@ class Model:
 
         # discriminator loss
         self.d_real_error = -F.mean(p_real)
-        self.d_fake_error = F.mean(p_fake)
+        self.d_fake_error = F.mean(p_fake_without_grads)
         self.d_error = self.d_real_error + self.d_fake_error \
                                          + lam_grad * grad_penalty
 
