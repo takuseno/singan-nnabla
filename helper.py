@@ -3,6 +3,8 @@ import cv2
 import math
 import pickle
 
+from skimage import color, morphology, filters
+
 
 def imread(path):
     return cv2.imread(path)
@@ -41,6 +43,14 @@ def denormalize(image):
     return np.array((clipped_image / 2.0 + 0.5) * 255.0, dtype=np.uint8)
 
 
+def image_to_batch(image):
+    return np.expand_dims(normalize(np.transpose(image, [2, 0, 1])), axis=0)
+
+
+def batch_to_image(x):
+    return denormalize(np.transpose(x[0], [1, 2, 0]))
+
+
 def _create_reals_pyramid(real, stop_scale, scale_factor):
     reals = []
     for i in range(stop_scale + 1):
@@ -76,6 +86,19 @@ def calculate_scales(real_raw, min_size, max_size, scale_factor):
     resized_min_len = min(real.shape[0], real.shape[1])
     scale_factor = (min_size / resized_min_len) ** (1 / stop_scale)
     return scale_factor, stop_scale, real
+
+
+def dilate_mask(mask, mode):
+    if mode == 'harmonization':
+        element = morphology.disk(radius=7)
+    elif mode == 'editing':
+        element = morphology.disk(radius=20)
+    # assume mask is one channel bw image
+    mask = morphology.binary_dilation(mask, selem=element)
+    mask = filters.gaussian(mask, sigma=5)
+    mask = mask.expand(1, 3, mask.shape[2], mask.shape[3])
+    mask = (mask - mask.min()) / (mask.max() - mask.min())
+    return mask
 
 
 def save_pkl(obj, path):
