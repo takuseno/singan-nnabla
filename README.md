@@ -1,7 +1,11 @@
 # SinGAN implementation with NNabla
 Reproduction of "SinGAN: Learning a Generative Model from a Single Natural Image" with NNabla.
 
+### Paper
 https://arxiv.org/abs/1905.01164
+
+### Original implementation
+https://github.com/tamarott/SinGAN
 
 
 ## install
