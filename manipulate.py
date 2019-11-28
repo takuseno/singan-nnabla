@@ -42,9 +42,11 @@ def generate(args, Zs, reals, noise_amps, gen_start=0, num_samples=50):
             curr_image = model.generate(
                 noise_amp * z_curr + prev_image, prev_image)
 
-            if scale_num == len(reals) - 1:
-                path = os.path.join(args.logdir, 'generated_image%d.png' % i)
-                image = denormalize(np.transpose(curr_image[0], [1, 2, 0]))
-                imwrite(image, path)
+    denormalize_image_fn = lambda x: denormalize(np.transpose(x[0], [1, 2, 0]))
+    images = list(map(denormalize_image_fn, curr_images))
 
-            curr_images.append(curr_image)
+    for i, image in enumerate(images):
+        path = os.path.join(args.logdir, 'generated_image%d.png' % i)
+        imwrite(image, path)
+
+    return images

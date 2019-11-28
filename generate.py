@@ -8,7 +8,7 @@ from nnabla.ext_utils import get_extension_context
 
 
 if __name__ == '__main__':
-    args = get_args()
+    args = get_args(test=True)
 
     if args.gpu:
         ctx = get_extension_context('cudnn', device_id='0')

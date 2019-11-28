@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 
-def get_args():
+def get_args(test=False):
     date = datetime.now().strftime('%Y%m%d%H%M%S')
     parser = argparse.ArgumentParser('NNabla implementation of SinGAN.')
     parser.add_argument('--gpu', action='store_true')
@@ -29,12 +29,15 @@ def get_args():
     parser.add_argument('--lam-grad', type=float, default=0.1)
     parser.add_argument('--alpha-recon', type=float, default=10.0)
     parser.add_argument('--image-path', type=str)
-    parser.add_argument('--load', type=str)
-    parser.add_argument('--load-reals', type=str)
-    parser.add_argument('--load-noise-amps', type=str)
-    parser.add_argument('--load-Zs', type=str)
-    parser.add_argument('--gen-start', type=int, default=0)
     parser.add_argument('--logdir', type=str, default='experiment')
+
+    if test:
+        parser.add_argument('--load', type=str)
+        parser.add_argument('--load-reals', type=str)
+        parser.add_argument('--load-noise-amps', type=str)
+        parser.add_argument('--load-Zs', type=str)
+        parser.add_argument('--gen-start', type=int, default=0)
+
     args = parser.parse_args()
 
     args.logdir = os.path.join('logs', args.logdir + '_' + date)
