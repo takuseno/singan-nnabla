@@ -27,7 +27,7 @@ def train(args):
     Zs = []
     noise_amps = []
 
-    for scale_num in range(args.stop_scale + 1):
+    for scale_num in range(len(reals)):
         fs = min(args.fs_init * (2 ** (scale_num // 4)), 128)
         min_fs = min(args.min_fs_init * (2 ** (scale_num // 4)), 128)
 

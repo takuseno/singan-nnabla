@@ -53,27 +53,29 @@ def _create_reals_pyramid(real, stop_scale, scale_factor):
 
 def create_real_images(args):
     real_raw = imread(args.image_path)
-    edge = max([real_raw.shape[0], real_raw.shape[1]])
 
-    args.num_scales = int((math.log(args.min_size / (real_raw.shape[1]),
-                                    args.scale_factor_init))) + 1
+    scale_factor, stop_scale, real = calculate_scales(
+        real_raw, args.min_size, args.max_size, args.scale_factor_init)
+    args.scale_factor = scale_factor
 
-    scale2stop = int(math.log(min([args.max_size, edge]) / edge,
-                              args.scale_factor_init))
-
-    args.stop_scale = args.num_scales - scale2stop
-
-    args.scale1 = min(args.max_size / edge, 1)
-
-    real = imrescale(real_raw, args.scale1)
-
-    args.scale_factor = (args.min_size / real.shape[0]) ** (1 / args.stop_scale)
-
-    reals = _create_reals_pyramid(real, args.stop_scale, args.scale_factor)
+    reals = _create_reals_pyramid(real, stop_scale, args.scale_factor)
     for i, real in enumerate(reals):
         print('real image shape at %d =' % i, real.shape)
 
     return reals
+
+
+def calculate_scales(real_raw, min_size, max_size, scale_factor):
+    max_len = max([real_raw.shape[0], real_raw.shape[1]])
+    min_len = min([real_raw.shape[0], real_raw.shape[1]])
+
+    num_scales = int((math.log(min_size / min_len, scale_factor))) + 1
+    scale2stop = int(math.log(min([max_size, max_len]) / max_len, scale_factor))
+    stop_scale = num_scales - scale2stop
+    real = imrescale(real_raw, min(max_size / max_len, 1))
+    resized_min_len = min(real.shape[0], real.shape[1])
+    scale_factor = (min_size / resized_min_len) ** (1 / stop_scale)
+    return scale_factor, stop_scale, real
 
 
 def save_pkl(obj, path):
