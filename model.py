@@ -73,35 +73,84 @@ class Model:
     def __init__(self, real, num_layer, fs, min_fs, kernel, pad, lam_grad,
                  alpha_recon, d_lr, g_lr, beta1, gamma, lr_milestone, scope,
                  test=False):
-        # generator model
-        generator_fn = partial(generator, num_layer=num_layer, fs=fs,
-                               min_fs=min_fs, kernel=kernel, pad=pad,
-                               scope='%s/generator' % scope, test=test)
+        self.real = real
+        self.num_layer = num_layer
+        self.fs = fs
+        self.min_fs = min_fs
+        self.kernel = kernel
+        self.pad = pad
+        self.lam_grad = lam_grad
+        self.alpha_recon = alpha_recon
+        self.d_lr = d_lr
+        self.g_lr = g_lr
+        self.beta1 = beta1
+        self.gamma = gamma
+        self.lr_milestone = lr_milestone
+        self.scope = scope
+        self.test = test
 
+        self._build()
+        self._setup_solvers()
+
+
+    # for generating larger images than the ones in training time
+    def get_generator_func(self, image_shape, channel_first=True):
+        if not channel_first:
+            image_shape = (image_shape[2], image_shape[0], image_shape[1])
+        generator_fn, _ = self._network_funcs()
+
+        # build inference graph
+        x_ = nn.Variable((1,) + image_shape)
+        y_ = nn.Variable((1,) + image_shape)
+        fake = generator_fn(x=x, y=y)
+
+        def func(x, y):
+            x_.d = x
+            y_.d = y
+            fake.forward(clear_buffer=True)
+            return fake.d.copy()
+
+        return func
+
+
+    def _network_funcs(self):
+        # generator model
+        generator_fn = partial(generator, num_layer=self.num_layer, fs=self.fs,
+                               min_fs=self.min_fs, kernel=self.kernel,
+                               pad=self.pad, scope='%s/generator' % self.scope,
+                               test=self.test)
         # discriminator model
-        discriminator_fn = partial(discriminator, num_layer=num_layer, fs=fs,
-                                   min_fs=min_fs, kernel=kernel, pad=pad,
-                                   scope='%s/discriminator' % scope, test=test)
+        discriminator_fn = partial(discriminator, num_layer=self.num_layer,
+                                   fs=self.fs, min_fs=self.min_fs,
+                                   kernel=self.kernel, pad=self.pad,
+                                   scope='%s/discriminator' % self.scope,
+                                   test=self.test)
+        return generator_fn, discriminator_fn
+
+
+    def _build(self):
+        generator_fn, discriminator_fn = self._network_funcs()
 
         # real shape
-        ch, w, h = real.shape[1], real.shape[2], real.shape[3]
+        ch, w, h = self.real.shape[1:]
 
         # inputs
         self.x = nn.Variable((1, ch, w, h))
         self.y = nn.Variable((1, ch, w, h))
         self.rec_x = nn.Variable((1, ch, w, h))
         self.rec_y = nn.Variable((1, ch, w, h))
-        y_real = nn.Variable.from_numpy_array(real)
+        y_real = nn.Variable.from_numpy_array(self.real)
         y_real.persistent = True
 
         # padding inputs
-        padded_x = _pad(self.x, kernel, num_layer)
-        padded_rec_x = _pad(self.rec_x, kernel, num_layer)
+        padded_x = _pad(self.x, self.kernel, self.num_layer)
+        padded_rec_x = _pad(self.rec_x, self.kernel, self.num_layer)
 
         # generate fake image
         self.fake = generator_fn(x=padded_x, y=self.y)
         fake_without_grads = F.identity(self.fake)
         fake_without_grads.need_grad = False
+        rec = generator_fn(x=padded_rec_x, y=self.rec_y)
 
         # discriminate images
         p_real = discriminator_fn(x=y_real)
@@ -116,28 +165,31 @@ class Model:
         self.d_real_error = -F.mean(p_real)
         self.d_fake_error = F.mean(p_fake_without_grads)
         self.d_error = self.d_real_error + self.d_fake_error \
-                                         + lam_grad * grad_penalty
+                                         + self.lam_grad * grad_penalty
 
         # generator loss
-        rec = generator_fn(x=padded_rec_x, y=self.rec_y)
         self.rec_error = F.mean(F.squared_error(rec, y_real))
         self.g_fake_error = -F.mean(p_fake)
-        self.g_error = self.g_fake_error + alpha_recon * self.rec_error
+        self.g_error = self.g_fake_error + self.alpha_recon * self.rec_error
 
+
+    def _setup_solvers(self):
         # prepare training parameters
-        with nn.parameter_scope('%s/discriminator' % scope):
+        with nn.parameter_scope('%s/discriminator' % self.scope):
             d_params = nn.get_parameters()
-        with nn.parameter_scope('%s/generator' % scope):
+        with nn.parameter_scope('%s/generator' % self.scope):
             g_params = nn.get_parameters()
 
         # create solver for discriminator
-        self.d_lr_scheduler = StepScheduler(d_lr, gamma, [lr_milestone])
-        self.d_solver = S.Adam(d_lr, beta1=beta1, beta2=0.999)
+        self.d_lr_scheduler = StepScheduler(self.d_lr, self.gamma,
+                                            [self.lr_milestone])
+        self.d_solver = S.Adam(self.d_lr, beta1=self.beta1, beta2=0.999)
         self.d_solver.set_parameters(d_params)
 
         # create solver for generator
-        self.g_lr_scheduler = StepScheduler(g_lr, gamma, [lr_milestone])
-        self.g_solver = S.Adam(g_lr, beta1=beta1, beta2=0.999)
+        self.g_lr_scheduler = StepScheduler(self.g_lr, self.gamma,
+                                            [self.lr_milestone])
+        self.g_solver = S.Adam(self.g_lr, beta1=self.beta1, beta2=0.999)
         self.g_solver.set_parameters(g_params)
 
 
